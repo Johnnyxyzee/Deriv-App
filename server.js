@@ -316,4 +316,8 @@ app.get('/balance', (req, res) => {
 	}
     }
 });
+<<<<<<< HEAD
 module.exports.handler = serverless(app);
+=======
+module.exports.handler = serverless(app);
+>>>>>>> 5236044bad09de50356f808895b5a10a1323ef63
