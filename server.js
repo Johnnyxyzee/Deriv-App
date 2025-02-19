@@ -316,3 +316,4 @@ app.get('/balance', (req, res) => {
 	}
     }
 });
+module.exports.handler = serverless(app);
