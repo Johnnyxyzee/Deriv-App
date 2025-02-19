@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Trading Interface</title>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+  <div id="balance">Balance: Loading...</div>
+  <input type="text" id="symbol" placeholder="Symbol" />
+  <input type="number" id="amount" placeholder="Amount" />
+  <button id="tradeBtn">Trade</button>
+
+  <script>
+    // Connect to Data Server for real-time updates
+    const dataWS = new WebSocket('ws://localhost:3001');
+    
+    dataWS.onmessage = (e) => {
+      const msg = JSON.parse(e.data);
+      if (msg.type === 'balance') {
+        $('#balance').text(`Balance: ${msg.data.balance} ${msg.data.currency}`);
+      }
+    };
+
+    // Connect to Trade Server for execution
+    $('#tradeBtn').click(() => {
+      const symbol = $('#symbol').val();
+      const amount = $('#amount').val();
+      
+      $.post('http://localhost:3002/trade', {
+        symbol,
+        amount
+      });
+    });
+  </script>
+</body>
+</html>

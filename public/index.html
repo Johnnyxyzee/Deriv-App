@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deriv API App</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: white;
+            color: black;
+        }
+        h1 {
+            color: #333;
+        }
+        #balance {
+            font-size: 24px;
+            font-weight: bold;
+            color: green;
+        }
+        #account-list {
+            margin-top: 20px;
+        }
+        button {
+            margin: 5px;
+            padding: 10px;
+            font-size: 16px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h1>Deriv API App</h1>
+    <p>Your account balance: <span id="balance">Loading...</span></p>
+    <div id="account-list">
+        <p>Select Account:</p>
+        
+    </div>
+
+    <label for="amount">Amount:</label>
+    <input type="number" id="amount" value="1"><br><br>
+
+    <label for="duration">Duration(1-15):</label>
+    <input type="number" id="duration" placeholder="Enter duration"><br><br>
+
+    <label for="symbol">Symbol:</label>
+    <input type="text" id="symbol" value="R_100"><br><br>
+
+    <button id="startTradesButton">Start Trades</button>
+
+
+
+    <script>
+	let ws = new WebSocket('ws://localhost:3000');
+        const accounts = [2];
+	let currentAccount = null;
+
+        ws.onopen = () =>{
+            console.log('Connected to server'); // Log when the connection is established
+        };
+
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            console.log('Received data:', data); // Debugging log
+            // Check if the balance data exists (even if the balance is 0)
+            if (data.balance !== undefined) {
+                const balanceElement = document.getElementById('balance');
+                if (data.balance === 0) {
+                    balanceElement.textContent = 'Your account balance is currently 0.';
+                } else {
+                    balanceElement.textContent = `${data.balance} ${data.currency}`;
+                }
+            }
+            if (data.accounts) {
+                accounts = data.accounts;
+                renderAccountList();
+		if (accounts.length > 2) { 
+                    currentAccount = accounts[2].loginid;
+                    fetchBalance();
+                }
+            }
+        };
+	fetchBalance();
+        ws.onerror = (error) => {
+            console.error('WebSocket error:', error);
+        };
+        ws.onclose = () => {
+            console.log('WebSocket connection closed');
+        };
+
+        const renderAccountList = () => {
+            const accountList = document.getElementById('account-list');
+            accountList.innerHTML = '<p>Select Account:</p>';
+            accounts.forEach(account => {
+                const button = document.createElement('button');
+                button.textContent = account.loginid;
+                button.onclick = () => switchAccount(account.loginid);
+                accountList.appendChild(button);
+            });
+        }
+	document.addEventListener('DOMContentLoaded', () => {
+            
+	    document.getElementById('startTradesButton').addEventListener('click', () => {
+                const amount = document.getElementById('amount').value;
+                const duration = document.getElementById('duration').value;
+                const symbol = document.getElementById('symbol').value;
+
+                if (!amount || !symbol || !duration) {
+                    alert("Please fill in all the fields."); // Basic client-side validation
+                    return;
+                }
+
+                fetch('/start-trades', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        amount: document.getElementById('amount').value,
+    			symbol: document.getElementById('symbol').value,
+    			duration: document.getElementById('duration').value,
+    			account: currentAccount, // Include the selected account
+                    }),
+                })
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Response from server:', data);
+                    if (data.message) {
+                        alert(data.message); // Show success message or handle errors
+                    }
+                    if (data.error) {
+                    alert(data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error starting trades:', error);
+                    alert("An error occurred. Please check the console.");
+                });
+            });
+	});
+        async function switchAccount (account) {
+	    try {
+                const response = await fetch('/switch-account', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ account })
+                });
+
+		if (!response.ok) { // Check for HTTP errors
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Server error');
+                }
+
+        	const result = await response.json();
+      	        if (result.success) {
+	            console.log('Account switched successfully:', result.message);
+	             
+		    currentAccount = account;
+
+	            fetchBalance(); // Call the function to get the balance
+	        } else {
+	            console.error('Account switch failed:', result.message);
+	        }
+	    } catch (error) {
+	        console.error('Error switching account:', error);
+	    }
+	}    
+	async function fetchBalance() {
+	    try {
+ 	        const response = await fetch('/balance', {
+                    method: 'POST',
+            	    headers: {
+                	'Content-Type': 'application/json',
+            	    },
+                    body: JSON.stringify({ account: currentAccount }),
+        	});
+
+                if (!response.ok) { // Check for HTTP errors
+                  const errorData = await response.json();
+                  throw new Error(errorData.message || 'Server error');
+                }
+
+                const balanceData = await response.json();
+                document.getElementById('balance').textContent = `${balanceData.balance} ${balanceData.currency}`;
+            } catch (error) {
+                console.error('Error fetching balance:', error);
+            }
+        }
+        const startTradesButton = document.getElementById('startTradesButton');
+
+        
+    </script>
+</body>
+</html>
